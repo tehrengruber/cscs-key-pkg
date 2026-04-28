@@ -1,0 +1,54 @@
+name: Build and Release
+
+on:
+  push:
+    paths: [PKGBUILD]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container: archlinux:base-devel
+    steps:
+      - name: Setup build environment
+        run: |
+          pacman -Syu --noconfirm git
+          useradd -m builder
+          echo 'builder ALL=(ALL) NOPASSWD: ALL' >> /etc/sudoers
+
+      - uses: actions/checkout@v4
+
+      - name: Parse PKGBUILD
+        id: pkg
+        run: |
+          bash -c 'source PKGBUILD && echo "pkgver=$pkgver" && echo "pkgrel=$pkgrel" && echo "pkgname=$pkgname"' >> "$GITHUB_OUTPUT"
+
+      - name: Build package
+        run: |
+          chown -R builder:builder .
+          su builder -c 'makepkg -s --noconfirm'
+
+      - name: Sign package
+        if: github.ref == 'refs/heads/main'
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+        run: |
+          echo "$GPG_PRIVATE_KEY" | gpg --batch --import
+          for pkg in *.pkg.tar.zst; do
+            gpg --batch --detach-sign "$pkg"
+          done
+
+      - name: Create release
+        if: github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: v${{ steps.pkg.outputs.pkgver }}-${{ steps.pkg.outputs.pkgrel }}
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          gh release create "$TAG" \
+            --title "${{ steps.pkg.outputs.pkgname }} $TAG" \
+            --generate-notes \
+            *.pkg.tar.zst *.pkg.tar.zst.sig
