@@ -15,7 +15,7 @@ jobs:
     steps:
       - name: Setup build environment
         run: |
-          pacman -Syu --noconfirm git
+          pacman -Syu --noconfirm git github-cli
           useradd -m builder
           echo 'builder ALL=(ALL) NOPASSWD: ALL' >> /etc/sudoers
 
