@@ -22,6 +22,7 @@ build() {
   cd "$pkgname-$pkgver"
   export RUSTUP_TOOLCHAIN=stable
   export CARGO_TARGET_DIR=target
+  export CFLAGS+=' -ffat-lto-objects'
   cargo build --frozen --release
 }
 
