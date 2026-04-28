@@ -21,6 +21,12 @@ jobs:
 
       - uses: actions/checkout@v4
 
+      - uses: actions/cache@v4
+        with:
+          path: /home/builder/.cargo/registry
+          key: cargo-registry-${{ hashFiles('PKGBUILD') }}
+          restore-keys: cargo-registry-
+
       - name: Parse PKGBUILD
         id: pkg
         run: |
