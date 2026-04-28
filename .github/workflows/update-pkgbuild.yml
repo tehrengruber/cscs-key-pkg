@@ -1,0 +1,51 @@
+name: Update PKGBUILD
+
+on:
+  schedule:
+    - cron: '0 6 * * *' # Daily at 06:00 UTC
+  workflow_dispatch:
+
+jobs:
+  check-update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Parse PKGBUILD
+        id: current
+        run: |
+          bash -c 'source PKGBUILD && echo "version=$pkgver" && echo "url=$url" && echo "repo=$_gh_repo"' >> "$GITHUB_OUTPUT"
+
+      - name: Get latest release from upstream
+        id: upstream
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          latest=$(gh api "repos/${{ steps.current.outputs.repo }}/releases/latest" --jq '.tag_name' | sed 's/^v//')
+          echo "version=$latest" >> "$GITHUB_OUTPUT"
+
+      - name: Update PKGBUILD
+        if: steps.current.outputs.version != steps.upstream.outputs.version
+        env:
+          NEW_VER: ${{ steps.upstream.outputs.version }}
+          UPSTREAM_URL: ${{ steps.current.outputs.url }}
+        run: |
+          sed -i "s/^pkgver=.*/pkgver=$NEW_VER/" PKGBUILD
+          sed -i "s/^pkgrel=.*/pkgrel=1/" PKGBUILD
+
+          # Update sha256sums
+          sha256=$(curl -sL "$UPSTREAM_URL/archive/refs/tags/v${NEW_VER}.tar.gz" | sha256sum | awk '{print $1}')
+          sed -i "s/^sha256sums=.*/sha256sums=('$sha256')/" PKGBUILD
+
+      - name: Create Pull Request
+        if: steps.current.outputs.version != steps.upstream.outputs.version
+        uses: peter-evans/create-pull-request@v7
+        with:
+          commit-message: "Update cscs-key to ${{ steps.upstream.outputs.version }}"
+          title: "Update cscs-key to ${{ steps.upstream.outputs.version }}"
+          body: |
+            Automated update of cscs-key from ${{ steps.current.outputs.version }} to ${{ steps.upstream.outputs.version }}.
+
+            Upstream release: ${{ steps.current.outputs.url }}/releases/tag/v${{ steps.upstream.outputs.version }}
+          branch: update-pkgbuild-${{ steps.upstream.outputs.version }}
+          delete-branch: true
