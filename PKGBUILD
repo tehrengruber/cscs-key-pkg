@@ -1,6 +1,6 @@
 # Maintainer: Till Ehrengruber <till.ehrengruber@cscs.ch>
 pkgname=cscs-key
-pkgver=1.1.0
+pkgver=1.2.0
 pkgrel=1
 pkgdesc="Command-line tool to manage SSH keys for the Swiss National Supercomputing Centre (CSCS)"
 arch=('x86_64' 'aarch64')
@@ -10,7 +10,7 @@ license=('custom')
 depends=('gcc-libs')
 makedepends=('cargo')
 source=("$pkgname-$pkgver.tar.gz::$url/archive/refs/tags/v$pkgver.tar.gz")
-sha256sums=('SKIP')
+sha256sums=('b8874cfe323315c116f084ff105873806808e449cfb8f5c699e864f0c33ff451')
 
 prepare() {
   cd "$pkgname-$pkgver"
